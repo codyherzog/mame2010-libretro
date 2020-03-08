@@ -16,4 +16,6 @@
 /obj
 /snap
 /sta
+/.vs
+.vscode
 *.so

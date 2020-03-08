@@ -501,6 +501,36 @@ state_save_error state_save_check_file(running_machine *machine, mame_file *file
 }
 
 
+size_t state_save_get_size(running_machine *machine)
+{
+	// TODO: Remove this hack and restore real size calculation.
+	// Not sure why we get crashes without this.
+	return 1024 * 1024 * 16;
+#if 0
+	state_private *global = machine->state_data;
+	//state_callback *func;
+	state_entry *entry;
+
+	/* if we have illegal registrations, return an error */
+	if (global->illegal_regs > 0)
+		return 0;
+
+	size_t size = HEADER_SIZE;
+
+	/* call the pre-save functions */
+	//for (func = global->prefunclist; func != NULL; func = func->next)
+	//	(*func->func.presave)(machine, func->param);
+
+	/* then write all the data */
+	for (entry = global->entrylist; entry != NULL; entry = entry->next)
+	{
+		UINT32 totalsize = entry->typesize * entry->typecount;
+		size += totalsize;
+	}
+	return size;
+#endif
+}
+
 /*-------------------------------------------------
     state_save_write_file - writes the data to
     a file
@@ -546,6 +576,46 @@ state_save_error state_save_write_file(running_machine *machine, mame_file *file
 	return STATERR_NONE;
 }
 
+state_save_error state_save_write_mem(running_machine *machine, void *data, size_t size)
+{
+	state_private *global = machine->state_data;
+	UINT32 signature = get_signature(machine);
+	UINT8 header[HEADER_SIZE];
+	state_callback *func;
+	state_entry *entry;
+
+	/* if we have illegal registrations, return an error */
+	if (global->illegal_regs > 0)
+		return STATERR_ILLEGAL_REGISTRATIONS;
+
+	/* generate the header */
+	memcpy(&header[0], ss_magic_num, 8);
+	header[8] = SAVE_VERSION;
+	header[9] = NATIVE_ENDIAN_VALUE_LE_BE(0, SS_MSB_FIRST);
+	strncpy((char *)&header[0x0a], machine->gamedrv->name, 0x1c - 0x0a);
+	*(UINT32 *)&header[0x1c] = LITTLE_ENDIANIZE_INT32(signature);
+
+	/* write the header */
+	UINT8* out = (UINT8*)data;
+	memcpy(out, header, sizeof(header));
+	out += sizeof(header);
+
+	/* call the pre-save functions */
+	for (func = global->prefunclist; func != NULL; func = func->next)
+		(*func->func.presave)(machine, func->param);
+
+	/* then write all the data */
+	for (entry = global->entrylist; entry != NULL; entry = entry->next)
+	{
+		UINT32 totalsize = entry->typesize * entry->typecount;
+		memcpy(out, entry->data, totalsize);
+		out += totalsize;
+		// TODO: Add size bounds check
+		//return STATERR_WRITE_ERROR;
+	}
+	return STATERR_NONE;
+}
+
 
 /*-------------------------------------------------
     state_save_read_file - read the data from a
@@ -585,6 +655,50 @@ state_save_error state_save_read_file(running_machine *machine, mame_file *file)
 		UINT32 totalsize = entry->typesize * entry->typecount;
 		if (mame_fread(file, entry->data, totalsize) != totalsize)
 			return STATERR_READ_ERROR;
+
+		/* handle flipping */
+		if (flip)
+			flip_data(entry);
+	}
+
+	/* call the post-load functions */
+	for (func = global->postfunclist; func != NULL; func = func->next)
+		(*func->func.postload)(machine, func->param);
+
+	return STATERR_NONE;
+}
+
+state_save_error state_save_read_mem(running_machine *machine, const void * data, size_t size)
+{
+	state_private *global = machine->state_data;
+	UINT32 signature = get_signature(machine);
+	UINT8 header[HEADER_SIZE];
+	state_callback *func;
+	state_entry *entry;
+	int flip;
+
+	/* if we have illegal registrations, return an error */
+	if (global->illegal_regs > 0)
+		return STATERR_ILLEGAL_REGISTRATIONS;
+
+	/* read the header */
+	UINT8* in = (UINT8*)data;
+	memcpy(header, in, sizeof(header));
+	in += sizeof(header);
+
+	/* verify the header and report an error if it doesn't match */
+	if (validate_header(header, machine->gamedrv->name, signature, popmessage, "Error: ")  != STATERR_NONE)
+		return STATERR_INVALID_HEADER;
+
+	/* determine whether or not to flip the data when done */
+	flip = NATIVE_ENDIAN_VALUE_LE_BE((header[9] & SS_MSB_FIRST) != 0, (header[9] & SS_MSB_FIRST) == 0);
+
+	/* read all the data, flipping if necessary */
+	for (entry = global->entrylist; entry != NULL; entry = entry->next)
+	{
+		UINT32 totalsize = entry->typesize * entry->typecount;
+		memcpy(entry->data, in, totalsize);
+		in += totalsize;
 
 		/* handle flipping */
 		if (flip)

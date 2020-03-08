@@ -173,14 +173,20 @@ void state_save_register_postload(running_machine *machine, state_postload_func 
 
 /* ----- save state file processing ----- */
 
+size_t state_save_get_size(running_machine *machine);
+
 /* check if a file is a valid save state */
 state_save_error state_save_check_file(running_machine *machine, mame_file *file, const char *gamename, void (CLIB_DECL *errormsg)(const char *fmt, ...));
 
 /* write out the save state file */
 state_save_error state_save_write_file(running_machine *machine, mame_file *file);
 
+state_save_error state_save_write_mem(running_machine *machine, void *data, size_t size);
+
 /* read in a save state file */
 state_save_error state_save_read_file(running_machine *machine, mame_file *file);
+
+state_save_error state_save_read_mem(running_machine *machine, const void * data, size_t size);
 
 
 

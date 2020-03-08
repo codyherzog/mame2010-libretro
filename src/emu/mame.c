@@ -106,7 +106,7 @@ static core_options *mame_opts;
 /* started empty? */
 static bool started_empty;
 
-static running_machine *global_machine;
+running_machine *global_machine;
 
 /* output channels */
 static output_callback_func output_cb[OUTPUT_CHANNEL_COUNT];

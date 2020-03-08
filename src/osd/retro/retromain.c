@@ -10,6 +10,7 @@ mame2010 - libretro port of mame 0.139
 #include "emu.h"
 #include "clifront.h"
 #include "render.h"
+#include "state.h"
 #include "ui.h"
 #include "uiinput.h"
 
@@ -139,9 +140,24 @@ static void initInput(running_machine* machine);
 /*********************************************/
 
 
-size_t retro_serialize_size(void){ return 0; }
-bool retro_serialize(void *data, size_t size){ return false; }
-bool retro_unserialize(const void * data, size_t size){ return false; }
+extern running_machine *global_machine;
+
+size_t retro_serialize_size(void)
+{
+   return state_save_get_size(global_machine);
+}
+
+bool retro_serialize(void *data, size_t size)
+{
+   state_save_write_mem(global_machine, data, size);
+   return true;
+}
+
+bool retro_unserialize(const void * data, size_t size)
+{
+   state_save_read_mem(global_machine, data, size);
+   return true;
+}
 
 unsigned retro_get_region (void) {return RETRO_REGION_NTSC;}
 void *retro_get_memory_data(unsigned type) {return 0;}
