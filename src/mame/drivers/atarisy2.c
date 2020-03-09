@@ -3041,6 +3041,7 @@ static DRIVER_INIT( paperboy )
 	UINT8 *cpu1 = memory_region(machine, "maincpu");
 
 	state->atarigen.eeprom_default = compressed_default_eeprom;
+	state->atarigen.slapstic = NULL;
 	slapstic_init(machine, 105);
 
 	/* expand the 16k program ROMs into full 64k chunks */

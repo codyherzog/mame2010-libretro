@@ -500,15 +500,9 @@ state_save_error state_save_check_file(running_machine *machine, mame_file *file
 	return validate_header(header, gamename, signature, errormsg, "");
 }
 
-
 size_t state_save_get_size(running_machine *machine)
 {
-	// TODO: Remove this hack and restore real size calculation.
-	// Not sure why we get crashes without this.
-	return 1024 * 1024 * 16;
-#if 0
 	state_private *global = machine->state_data;
-	//state_callback *func;
 	state_entry *entry;
 
 	/* if we have illegal registrations, return an error */
@@ -516,11 +510,6 @@ size_t state_save_get_size(running_machine *machine)
 		return 0;
 
 	size_t size = HEADER_SIZE;
-
-	/* call the pre-save functions */
-	//for (func = global->prefunclist; func != NULL; func = func->next)
-	//	(*func->func.presave)(machine, func->param);
-
 	/* then write all the data */
 	for (entry = global->entrylist; entry != NULL; entry = entry->next)
 	{
@@ -528,7 +517,6 @@ size_t state_save_get_size(running_machine *machine)
 		size += totalsize;
 	}
 	return size;
-#endif
 }
 
 /*-------------------------------------------------

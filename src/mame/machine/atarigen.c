@@ -469,6 +469,9 @@ void decompress_eeprom_byte(UINT8 *dest, const UINT16 *data)
 
 INLINE void update_bank(atarigen_state *state, int bank)
 {
+	if (!state->slapstic)
+		return;
+
 	/* if the bank has changed, copy the memory; Pit Fighter needs this */
 	if (bank != state->slapstic_bank)
 	{
